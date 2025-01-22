@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 
 const Header = () => {
   return (
@@ -16,13 +17,17 @@ const Header = () => {
           <div className="container mx-auto px-4 py-4">
             <div className="flex justify-between items-center">
               <h1 className="text-2xl font-bold">BM Store</h1>
-              <div className='hidden items-center gap-5 text-[#000000] sm:flex lg:gap-10 bis_skin_checked="1"flex '>
-              <a href="/">
-              <div className='menu_btns capitalize'>Home</div>
-              </a>
-              <a href="#About">About</a>
-              <a href="http://localhost:3000/Contact">Contact</a>
-            </div>
+              <div className="hidden items-center gap-5 text-[#000000] sm:flex lg:gap-10">
+                <Link href="/">
+                  <div className="menu_btns capitalize cursor-pointer">Home</div>
+                </Link>
+                <Link href="#About">
+                  <div className="cursor-pointer">About</div>
+                </Link>
+                <Link href="/Contact">
+                  <div className="cursor-pointer">Contact</div>
+                </Link>
+              </div>
               <button className="text-blue-500 text-sm">Login / Register</button>
             </div>
           </div>
