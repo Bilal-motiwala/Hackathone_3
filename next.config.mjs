@@ -1,18 +1,9 @@
-import { hostname } from "os";
-import path from "path";
-
+/** @type {import('next').NextConfig} */
 const nextConfig = {
-eslint: {
-    ignoreDuringBuilds: true,
-},
-images: {
-    remotePatterns: [
-        {
-            protocol: "https",
-            hostname: "cdn.sanity.io",
-            pathname: '/images/**'
-        }
-    ]
-},
-};
-export default nextConfig;
+    images: {
+      domains: ['cdn.sanity.io'], // Add this to allow images from Sanity
+    },
+  };
+  
+  export default nextConfig;
+  

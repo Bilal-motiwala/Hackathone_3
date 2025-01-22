@@ -56,8 +56,13 @@ const ProductDetail = ({ params }: any) => {
   };
 
   if (!product) {
-    return <h1>Loading...</h1>;
+    return <div className="min-h-screen flex flex-col justify-center items-center">
+      <h1 className="text-center text-2xl font-bold">Loading Products...
+      </h1>
+      <div className="animate-spin h-24 w-24 rounded-full border-2 border-b-blue-800 mt-10"></div>
+    </div>
   }
+
 
   return (
     <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">

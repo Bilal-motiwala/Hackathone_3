@@ -1,14 +1,15 @@
-import Footer from "@/Components/Footer";
-import Header from "@/Components/Header";
-import Products from "@/Components/Products";
-import "./globals.css";
+import Footer from "../app/components/Footer"
+import Header from "../app/components/Header"
+import Products from "./components/Products"
 
-export default function Home() {
+const page = () => {
   return (
-    <>
-    <Header/>
+    <div>
+      <Header/>
       <Products/>
-      <Footer />
-    </>
-  );
+      <Footer/>
+    </div>
+  )
 }
+
+export default page
