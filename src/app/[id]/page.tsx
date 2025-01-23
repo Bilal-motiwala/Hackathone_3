@@ -19,7 +19,7 @@ const ProductDetail = ({ params }: any) => {
   }
 
   const [product, setProduct] = useState<Product | null>(null);
-
+  const [carts, setCarts] = useState<string[]>([]); 
   // Fetch product data
   useEffect(() => {
     const fetchProduct = async () => {
@@ -42,11 +42,13 @@ const ProductDetail = ({ params }: any) => {
 
   // Handle adding product to cart
   const handleAddToCart = () => {
-    const currentCart = JSON.parse(localStorage.getItem("cart") || "[]");
+    const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
+    setCarts(cartItems)
     const newProduct = { ...product, quantity: 1 };
-    localStorage.setItem("cart", JSON.stringify([...currentCart, newProduct]));
-    alert("Added to cart!");
+    localStorage.setItem("cart", JSON.stringify([...cartItems, newProduct]));
+    // alert("Added to cart!");
   };
+
 
   // Handle buy now (redirect to checkout)
   const handleBuyNow = () => {
@@ -83,6 +85,7 @@ const ProductDetail = ({ params }: any) => {
         <div className="space-y-6">
           {/* Product Title */}
           <h1 className="text-3xl font-bold text-gray-900">{product.title}</h1>
+          <p> carts : {carts.length}</p>
           {/* Product Price */}
           <p className="text-xl text-gray-700">{`$${product.price.toFixed(2)}`}</p>
 
@@ -139,6 +142,8 @@ const ProductDetail = ({ params }: any) => {
           Back to Products
         </Link>
       </div>
+   
+  
     </main>
   );
 };
