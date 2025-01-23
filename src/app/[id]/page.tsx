@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { client } from "@/sanity/lib/client";
-import { product } from "@/sanity/schemaTypes/product";
+
 
 const ProductDetail = ({ params }: any) => {
   interface Product {
