@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { client } from "@/sanity/lib/client";
 
-
 const ProductDetail = ({ params }: any) => {
   interface Product {
     title: string;
@@ -19,7 +18,8 @@ const ProductDetail = ({ params }: any) => {
   }
 
   const [product, setProduct] = useState<Product | null>(null);
-  const [carts, setCarts] = useState<string[]>([]); 
+  const [cartItem, setCartItem] = useState<{ quantity: number } | null>(null);
+
   // Fetch product data
   useEffect(() => {
     const fetchProduct = async () => {
@@ -36,41 +36,64 @@ const ProductDetail = ({ params }: any) => {
 
       const fetchedProduct = await client.fetch(query);
       setProduct(fetchedProduct);
+
+      // Check if product is already in the cart
+      const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
+      const existingItem = cartItems.find((item: any) => item._id === params.id);
+      if (existingItem) {
+        setCartItem({ quantity: existingItem.quantity });
+      }
     };
     fetchProduct();
   }, [params.id]);
 
+  // Update cart in localStorage
+  const updateCart = (quantity: number) => {
+    const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
+    const updatedCart = cartItems.filter((item: any) => item._id !== product?._id);
+
+    if (quantity > 0) {
+      updatedCart.push({ ...product, quantity });
+    }
+
+    localStorage.setItem("cart", JSON.stringify(updatedCart));
+    setCartItem(quantity > 0 ? { quantity } : null);
+  };
+
   // Handle adding product to cart
   const handleAddToCart = () => {
-    const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
-    setCarts(cartItems)
-    const newProduct = { ...product, quantity: 1 };
-    localStorage.setItem("cart", JSON.stringify([...cartItems, newProduct]));
-    // alert("Added to cart!");
+    updateCart(1);
   };
 
-
-  // Handle buy now (redirect to checkout)
-  const handleBuyNow = () => {
-    // Assuming you're redirecting to a checkout page
-    localStorage.setItem("cart", JSON.stringify([{ ...product, quantity: 1 }]));
-    window.location.href = "/checkout";  // Replace with your checkout page URL
+  // Handle incrementing quantity
+  const handleIncrement = () => {
+    if (cartItem) {
+      updateCart(cartItem.quantity + 1);
+    }
   };
+
+  // Handle decrementing quantity
+  const handleDecrement = () => {
+    if (cartItem && cartItem.quantity > 1) {
+      updateCart(cartItem.quantity - 1);
+    } else {
+      updateCart(0); // Remove item from cart
+    }
+  };
+
 
   if (!product) {
-    return <div className="min-h-screen flex flex-col justify-center items-center">
-      <h1 className="text-center text-2xl font-bold">Loading Products...
-      </h1>
-      <div className="animate-spin h-24 w-24 rounded-full border-2 border-b-blue-800 mt-10"></div>
-    </div>
+    return (
+      <div className="min-h-screen flex flex-col justify-center items-center">
+        <h1 className="text-center text-2xl font-bold">Loading Products...</h1>
+        <div className="animate-spin h-24 w-24 rounded-full border-2 border-b-blue-800 mt-10"></div>
+      </div>
+    );
   }
-
 
   return (
     <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* Product Details Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Product Image */}
         <div className="flex justify-center md:justify-start">
           <Image
             src={product.imageUrl}
@@ -81,15 +104,10 @@ const ProductDetail = ({ params }: any) => {
           />
         </div>
 
-        {/* Product Info */}
         <div className="space-y-6">
-          {/* Product Title */}
           <h1 className="text-3xl font-bold text-gray-900">{product.title}</h1>
-          <p> carts : {carts.length}</p>
-          {/* Product Price */}
           <p className="text-xl text-gray-700">{`$${product.price.toFixed(2)}`}</p>
 
-          {/* Discount & New Badge */}
           <div className="flex flex-wrap space-x-4 mt-4">
             {product.discountPercentage && (
               <span className="text-sm text-red-600 bg-red-200 px-2 py-1 rounded-full">
@@ -103,7 +121,6 @@ const ProductDetail = ({ params }: any) => {
             )}
           </div>
 
-          {/* Product Tags */}
           <div className="flex flex-wrap mt-4 space-x-2">
             {product.tags.map((tag, index) => (
               <span
@@ -115,19 +132,35 @@ const ProductDetail = ({ params }: any) => {
             ))}
           </div>
 
-          {/* Product Description */}
           <p className="text-gray-600">{product.description}</p>
 
-          {/* Add to Cart or Buy Button */}
           <div className="flex flex-col space-y-4 mt-6">
+            {cartItem ? (
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={handleDecrement}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                >
+                  -
+                </button>
+                <span className="text-lg font-semibold">{cartItem.quantity}</span>
+                <button
+                  onClick={handleIncrement}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                >
+                  +
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleAddToCart}
+                className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              >
+                Add to Cart
+              </button>
+            )}
             <button
-              onClick={handleAddToCart}
-              className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              Add to Cart
-            </button>
-            <button
-              onClick={handleBuyNow}
+              onClick={() => (window.location.href = "/checkout")}
               className="w-full py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
             >
               Buy Now
@@ -136,14 +169,11 @@ const ProductDetail = ({ params }: any) => {
         </div>
       </div>
 
-      {/* Back to Products Link */}
       <div className="mt-8 text-center">
         <Link href="/" className="text-blue-600 hover:underline">
           Back to Products
         </Link>
       </div>
-   
-  
     </main>
   );
 };
