@@ -1,7 +1,16 @@
+"use client"
+
+import {SignInButton , UserButton , useUser  } from "@clerk/nextjs"
+
 import React from "react";
 import Link from "next/link";
 
 const Header = () => {
+
+  const { user , isSignedIn} = useUser();
+    
+  console.log("User info", user?.fullName , isSignedIn);
+
   return (
     <div>
       <div className="flex flex-col">
@@ -28,7 +37,10 @@ const Header = () => {
                   <div className="cursor-pointer">Contact</div>
                 </Link>
               </div>
-              <button className="text-blue-500 text-sm">Login / Register</button>
+              <UserButton />
+            {
+                !user? <SignInButton />: null
+            }
             </div>
           </div>
         </nav>
