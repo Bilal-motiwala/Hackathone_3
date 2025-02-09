@@ -1,83 +1,110 @@
+"use client";
 
-// "use client";
+import { loadStripe, Stripe } from "@stripe/stripe-js";
+import { useEffect, useState } from "react";
+import { useAtom } from "jotai";
+import { motion } from "framer-motion";
+import { ClipLoader } from "react-spinners";
+import toast, { Toaster } from "react-hot-toast";
 
-// import React, { useState, useEffect } from "react";
-// import {
-//   useStripe,
-//   useElements,
-//   PaymentElement,
-// } from "@stripe/react-stripe-js";
-// import convertToSubCurrency from "../lib/ConvertToSubCurrency";
+import { cartAtom } from "../../../stor"; // Adjust the path as needed
 
-// const CheckoutPage = ({ amount }: { amount: number }) => {
-//   const stripe = useStripe();
-//   const elements = useElements();
-//   const [errorMessage, setError] = useState<string | null>(null);
-//   const [clientSecret, setClientSecret] = useState("");
-//   const [loading, setLoading] = useState(false);
+const CheckoutButton = () => {
+  // Get the cart and its setter from the global Jotai store
+  const [cart, setCart] = useAtom(cartAtom);
 
-//   useEffect(() => {
-//     fetch("/api/create-payment-intent", {
-//       method: "POST",
-//       headers: {
-//         "Content-Type": "application/json",
-//       },
-//       body: JSON.stringify({ amount: convertToSubCurrency(amount) }),
-//     })
-//       .then((res) => res.json())
-//       .then((data) => setClientSecret(data.clientSecret));
-//   }, [amount]);
+  // State to store the loaded Stripe instance
+  const [stripe, setStripe] = useState<Stripe | null>(null);
+  // Loading state for when the checkout session is being created
+  const [isLoading, setIsLoading] = useState(false);
 
-//   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-//     event.preventDefault();
-//     setLoading(true);
+  console.log("Checkout page - cart:", cart);
 
-//     if (!stripe || !elements) {
-//       setLoading(false);
-//       return;
-//     }
+  // Load Stripe on component mount
+  useEffect(() => {
+    loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+      .then((loadedStripe) => {
+        setStripe(loadedStripe);
+      })
+      .catch((error) => {
+        console.error("Error loading Stripe:", error);
+      });
+  }, []);
 
-//     const { error: submitError } = await elements.submit();
-//     if (submitError) {
-//       setError(errorMessage);
-//       setLoading(false);
-//       return;
-//     }
+  const handleCheckout = async () => {
+    if (!stripe) {
+      console.error("Stripe has not loaded yet!");
+      return;
+    }
 
-//     const { error } = await stripe.confirmPayment({
-//       elements,
-//       clientSecret,
-//       confirmParams: {
-//         return_url: `http://www.localhost:3000/payment-success?amount=${amount}`,
-//       },
-//     });
+    setIsLoading(true);
 
-//     if (error) {
-//       setError(errorMessage);
-//     }
+    try {
+      // Send the cart data as an object so the backend can access it via req.body.cart
+      const payload = { cart };
+      console.log("Payload being sent:", payload);
 
-//     setLoading(false);
-//   };
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-//   return (
-//     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
-//       <div className="bg-white shadow-lg rounded-lg p-6 w-full max-w-md">
-//         <h2 className="text-xl font-semibold text-gray-700 text-center mb-4">
-//           Secure Checkout
-//         </h2>
-//         <form onSubmit={handleSubmit} className="space-y-4">
-//           {clientSecret ? <PaymentElement /> : <p>Loading payment details...</p>}
-//           {errorMessage && <div className="text-red-500 text-sm">{errorMessage}</div>}
-//           <button
-//             disabled={!stripe || loading}
-//             className="w-full bg-black text-white font-bold py-3 rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-800"
-//           >
-//             {!loading ? `Pay $${amount}` : "Processing..."}
-//           </button>
-//         </form>
-//       </div>
-//     </div>
-//   );
-// };
+      if (!res.ok) {
+        console.error("Failed to create checkout session");
+        toast.error("Failed to create checkout session");
+        setIsLoading(false);
+        return;
+      }
 
-// export default CheckoutPage;
+      const { sessionId } = await res.json();
+
+      if (sessionId) {
+        const { error } = await stripe.redirectToCheckout({ sessionId });
+        if (error) {
+          console.error("Stripe Checkout Error:", error);
+          toast.error(`Stripe Checkout Error: ${error.message}`);
+        }
+      } else {
+        console.error("No session ID returned from server");
+        toast.error("No session ID returned from server");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("An error occurred during checkout");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <>
+      {/* Toaster for toast notifications */}
+      <Toaster />
+
+      <motion.button
+        className={`${
+          !stripe || isLoading || cart.length === 0
+            ? "bg-gray-500 cursor-not-allowed"
+            : "bg-blue-500 hover:bg-green-700"
+        } w-full text-white p-3 rounded-md mt-4 flex justify-center items-center`}
+        onClick={handleCheckout}
+        disabled={!stripe || isLoading || cart.length === 0}
+        initial={{ scale: 1 }}
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.98 }}
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+      >
+        {isLoading ? (
+          <ClipLoader size={30} color="#fff" loading={isLoading} />
+        ) : (
+          "Checkout"
+        )}
+      </motion.button>
+    </>
+  );
+};
+
+export default CheckoutButton;

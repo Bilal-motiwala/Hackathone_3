@@ -1,11 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import toast, { Toaster } from "react-hot-toast";
+import { useAtom } from "jotai";
+
 import { client } from "@/sanity/lib/client";
+import { cartAtom } from "../../../stor";
 
 const ProductDetail = ({ params }: any) => {
+  // Product interface (without quantity field)
   interface Product {
     title: string;
     discountPercentage: number | null;
@@ -19,8 +24,7 @@ const ProductDetail = ({ params }: any) => {
 
   const [product, setProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
-  const [totalPrice, setTotalPrice] = useState<number>(0);
-  const [basePrice, setBasePrice] = useState<number>(0);
+  const [cart, setCart] = useAtom(cartAtom);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -34,44 +38,45 @@ const ProductDetail = ({ params }: any) => {
         description,
         _id,
       }`;
-
       const fetchedProduct = await client.fetch(query);
       setProduct(fetchedProduct);
-      setBasePrice(fetchedProduct.price);
-      setTotalPrice(fetchedProduct.price);
 
-      const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
-      const existingItem = cartItems.find((item: any) => item._id === params.id);
+      // If the product already exists in the cart, set the quantity accordingly.
+      const existingItem = cart.find((item) => item._id === params.id);
       if (existingItem) {
         setQuantity(existingItem.quantity);
-        setTotalPrice(fetchedProduct.price + (existingItem.quantity - 1) * fetchedProduct.price);
       }
     };
+
     fetchProduct();
-  }, [params.id]);
+  }, [params.id, cart]);
 
-  const updateCart = (newQuantity: number) => {
+  const handleAddToCart = () => {
     if (!product) return;
-    const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
-    const updatedCart = cartItems.filter((item: any) => item._id !== product._id);
 
-    if (newQuantity > 0) {
-      updatedCart.push({ ...product, quantity: newQuantity });
+    // Create a product object with a dynamic quantity field.
+    const productWithQuantity = { ...product, quantity };
+
+    // If the product already exists in the cart, add the current quantity;
+    // otherwise, add it with the current quantity.
+    const existingItem = cart.find((item) => item._id === product._id);
+    let updatedCart;
+    if (existingItem) {
+      updatedCart = cart.map((item) =>
+        item._id === product._id
+          ? { ...item, quantity: item.quantity + quantity }
+          : item
+      );
+    } else {
+      updatedCart = [...cart, productWithQuantity];
     }
 
-    localStorage.setItem("cart", JSON.stringify(updatedCart));
-    setQuantity(newQuantity);
-    setTotalPrice(basePrice + (newQuantity - 1) * basePrice);
-  };
+    setCart(updatedCart);
+    toast.success("Product added to cart!");
 
-  const handleIncrement = () => {
-    updateCart(quantity + 1);
-  };
-
-  const handleDecrement = () => {
-    if (quantity > 1) {
-      updateCart(quantity - 1);
-    }
+    // Reset the quantity to 1 after adding to the cart,
+    // so each click adds one unit unless the user manually increments.
+    setQuantity(1);
   };
 
   if (!product) {
@@ -85,45 +90,97 @@ const ProductDetail = ({ params }: any) => {
 
   return (
     <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Toaster for Notifications */}
+      <Toaster />
+
+      {/* Navbar with Cart Count */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Product Details</h1>
+        <Link href="/cart" className="relative">
+          <span className="text-xl font-semibold">
+            🛒 Cart (
+            {cart.reduce((acc: number, item: any) => acc + item.quantity, 0)}
+            )
+          </span>
+        </Link>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="flex justify-center md:justify-start">
-          <Image src={product.imageUrl} alt={product.title} width={500} height={300} className="rounded-lg shadow-md w-full max-w-[400px] object-contain" />
+          <Image
+            src={product.imageUrl}
+            alt={product.title}
+            width={500}
+            height={300}
+            className="rounded-lg shadow-md w-full max-w-[400px] object-contain"
+          />
         </div>
 
         <div className="space-y-6">
           <h1 className="text-3xl font-bold text-gray-900">{product.title}</h1>
-          <p className="text-xl text-gray-700">{`Total Price: $${totalPrice.toFixed(2)}`}</p>
+          <p className="text-xl text-gray-700">
+            {`Total Price: $${(product.price * quantity).toFixed(2)}`}
+          </p>
 
           <div className="flex flex-wrap space-x-4 mt-4">
             {product.discountPercentage && (
-              <span className="text-sm text-red-600 bg-red-200 px-2 py-1 rounded-full">{product.discountPercentage}% OFF</span>
+              <span className="text-sm text-red-600 bg-red-200 px-2 py-1 rounded-full">
+                {product.discountPercentage}% OFF
+              </span>
             )}
             {product.isNew && (
-              <span className="text-sm text-green-600 bg-green-200 px-2 py-1 rounded-full">New</span>
+              <span className="text-sm text-green-600 bg-green-200 px-2 py-1 rounded-full">
+                New
+              </span>
             )}
           </div>
 
           <div className="flex flex-wrap mt-4 space-x-2">
             {product.tags.map((tag, index) => (
-              <span key={index} className="text-sm text-gray-600 bg-gray-200 px-3 py-1 rounded-full">{tag}</span>
+              <span
+                key={index}
+                className="text-sm text-gray-600 bg-gray-200 px-3 py-1 rounded-full"
+              >
+                {tag}
+              </span>
             ))}
           </div>
 
           <p className="text-gray-600">{product.description}</p>
 
           <div className="flex flex-col space-y-4 mt-6">
+            {/* Quantity Selector */}
             <div className="flex items-center space-x-4">
-              <button onClick={handleDecrement} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">-</button>
+              <button
+                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+              >
+                -
+              </button>
               <span className="text-lg font-semibold">{quantity}</span>
-              <button onClick={handleIncrement} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">+</button>
+              <button
+                onClick={() => setQuantity(quantity + 1)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              >
+                +
+              </button>
             </div>
-            <button onClick={() => (window.location.href = "/checkout")} className="w-full py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">Buy Now</button>
+
+            <button
+              onClick={handleAddToCart}
+              className="w-full py-2 px-4 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition"
+            >
+              Add to Cart (
+              {cart.reduce((acc: number, item: any) => acc + item.quantity, 0)})
+            </button>
           </div>
         </div>
       </div>
 
       <div className="mt-8 text-center">
-        <Link href="/" className="text-blue-600 hover:underline">Back to Products</Link>
+        <Link href="/" className="text-blue-600 hover:underline">
+          Back to Products
+        </Link>
       </div>
     </main>
   );
